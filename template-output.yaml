@@ -1,0 +1,171 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'Serverless Application Model implementation.
+
+  '
+Globals:
+  Function:
+    Runtime: java8
+    Timeout: 60
+    Tags:
+      stage:
+        Ref: StageName
+Parameters:
+  ApplicationName:
+    Type: String
+    Description: Application name
+  S3BucketName:
+    Type: String
+    Description: The name of the S3 bucket in which the Swagger specification can
+      be found.
+  StageName:
+    Type: String
+    Default: dev
+    Description: The Lambda Function Stage
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName:
+        Fn::Sub: ${ApplicationName}-user-pool
+      MfaConfiguration: 'OFF'
+      EmailConfiguration:
+        EmailSendingAccount: COGNITO_DEFAULT
+        ReplyToEmailAddress: learntechpuzz@gmail.com
+        SourceArn: arn:aws:ses:us-east-1:875051453867:identity/learntechpuzz@gmail.com
+      Schema:
+      - Name: name
+        AttributeDataType: String
+        Mutable: true
+        Required: true
+      - Name: email
+        AttributeDataType: String
+        Mutable: false
+        Required: true
+      - Name: phone_number
+        AttributeDataType: String
+        Mutable: false
+        Required: true
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName:
+        Fn::Sub: ${ApplicationName}-client
+      GenerateSecret: false
+      UserPoolId:
+        Ref: UserPool
+  IdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      IdentityPoolName:
+        Fn::Sub: ${ApplicationName}Identity
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+      - ClientId:
+          Ref: UserPoolClient
+        ProviderName:
+          Fn::GetAtt:
+          - UserPool
+          - ProviderName
+  CognitoAuthorizedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Federated: cognito-identity.amazonaws.com
+          Action:
+          - sts:AssumeRoleWithWebIdentity
+          Condition:
+            StringEquals:
+              cognito-identity.amazonaws.com:aud:
+                Ref: IdentityPool
+            ForAnyValue:StringLike:
+              cognito-identity.amazonaws.com:amr: authenticated
+      Policies:
+      - PolicyName: CognitoAuthorizedPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - cognito-sync:*
+            - cognito-identity:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - lambda:InvokeFunction
+            - execute-api:Invoke
+            Resource: '*'
+  IdentityPoolRoleMapping:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId:
+        Ref: IdentityPool
+      Roles:
+        authenticated:
+          Fn::GetAtt:
+          - CognitoAuthorizedRole
+          - Arn
+  UserTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: Name
+        AttributeType: S
+      KeySchema:
+      - AttributeName: Name
+        KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+      TableName: User
+  CreateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName:
+        Fn::Sub: ${ApplicationName}-${StageName}-create-user
+      Handler: com.learntechpuzz.lambda.UserHandler::handleRequest
+      CodeUri: s3://learntechpuzz-dev/bd57b5f37906413c79fde1e33b4bf493
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: UserTable
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: UserTable
+      Events:
+        UserApi:
+          Type: Api
+          Properties:
+            Path: /user
+            Method: POST
+            RestApiId:
+              Ref: RestApi
+  RestApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name:
+        Fn::Sub: ${ApplicationName}-${StageName}
+      StageName: dev
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location:
+              Fn::Join:
+              - ''
+              - - s3://
+                - Ref: S3BucketName
+                - /swagger.yaml
+Outputs:
+  ApiUrl:
+    Value:
+      Fn::Join:
+      - ''
+      - - https://
+        - Ref: RestApi
+        - Fn::Sub: .execute-api.${AWS::Region}.amazonaws.com/dev

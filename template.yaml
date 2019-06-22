@@ -1,0 +1,169 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+    Serverless Application Model implementation.
+
+Globals:
+  Function:
+    Runtime: java8
+    Timeout: 60
+    Tags:
+      stage:
+        Ref: StageName
+
+Parameters:
+  ApplicationName:
+    Type: String
+    Description: Application name
+  S3BucketName:
+    Type: String
+    Description: The name of the S3 bucket in which the Swagger specification can be found.
+  StageName:
+    Type: String
+    Default: dev
+    Description: The Lambda Function Stage
+
+Resources:
+
+  # Creates a user pool in cognito for your app to auth against
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub ${ApplicationName}-user-pool
+      MfaConfiguration: "OFF"
+      EmailConfiguration: 
+          EmailSendingAccount: COGNITO_DEFAULT
+          ReplyToEmailAddress: "learntechpuzz@gmail.com"
+          SourceArn: arn:aws:ses:us-east-1:875051453867:identity/learntechpuzz@gmail.com
+      Schema:
+        - Name: name
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+        - Name: email
+          AttributeDataType: String
+          Mutable: false
+          Required: true
+        - Name: phone_number
+          AttributeDataType: String
+          Mutable: false
+          Required: true
+  # Creates a User Pool Client to be used by the identity pool
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub ${ApplicationName}-client
+      GenerateSecret: false
+      UserPoolId: !Ref UserPool
+  # Creates a federeated Identity pool
+  IdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      IdentityPoolName: !Sub ${ApplicationName}Identity
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders: 
+        - ClientId: !Ref UserPoolClient
+          ProviderName: !GetAtt UserPool.ProviderName
+  # Create a role for authorized acces to AWS resources. Control what your user can access. This example only allows Lambda invocation
+  CognitoAuthorizedRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal: 
+              Federated: "cognito-identity.amazonaws.com"
+            Action: 
+              - "sts:AssumeRoleWithWebIdentity"
+            Condition:
+              StringEquals: 
+                "cognito-identity.amazonaws.com:aud": !Ref IdentityPool
+              "ForAnyValue:StringLike":
+                "cognito-identity.amazonaws.com:amr": authenticated
+      Policies:
+        - PolicyName: "CognitoAuthorizedPolicy"
+          PolicyDocument: 
+            Version: "2012-10-17"
+            Statement: 
+              - Effect: "Allow"
+                Action:
+                  - "cognito-sync:*"
+                  - "cognito-identity:*"
+                Resource: "*"
+              - Effect: "Allow"
+                Action:
+                  - "lambda:InvokeFunction"
+                  - "execute-api:Invoke"
+                Resource: "*"  
+  # Assigns the roles to the Identity Pool
+  IdentityPoolRoleMapping:
+    Type: "AWS::Cognito::IdentityPoolRoleAttachment"
+    Properties:
+      IdentityPoolId: !Ref IdentityPool
+      Roles:
+        authenticated: !GetAtt CognitoAuthorizedRole.Arn
+  # DynamoDB User table      
+  UserTable: 
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      AttributeDefinitions: 
+        - 
+          AttributeName: "Name"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "Name"
+          KeyType: "HASH"
+      ProvisionedThroughput: 
+        ReadCapacityUnits: "5"
+        WriteCapacityUnits: "5"
+      TableName: "User"
+  # Lambda Function to create user    
+  CreateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName:
+        Fn::Sub: ${ApplicationName}-${StageName}-create-user
+      Handler: com.learntechpuzz.lambda.UserHandler::handleRequest
+      CodeUri: lambda-functions/target/learntechpuzz-aws-lambda-0.1.0-SNAPSHOT.jar
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UserTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref UserTable
+      Events:
+        UserApi:
+          Type: Api
+          Properties:
+            Path: /user
+            Method: POST
+            RestApiId:
+                Ref: RestApi              
+  # Api    
+  RestApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name:
+        Fn::Sub: ${ApplicationName}-${StageName}
+      StageName: dev
+      DefinitionBody:
+          Fn::Transform:
+            Name: AWS::Include
+            Parameters:
+              Location:
+                Fn::Join:
+                  - ''
+                  - - 's3://'
+                    - Ref: S3BucketName
+                    - '/swagger.yaml'
+# Outputs              
+Outputs:
+  ApiUrl:
+    Value:
+      Fn::Join:
+        - ""
+        - - "https://"
+          - Ref: RestApi
+          - Fn::Sub: ".execute-api.${AWS::Region}.amazonaws.com/dev"
