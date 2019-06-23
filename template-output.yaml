@@ -16,10 +16,42 @@ Parameters:
     Default: dev
     Description: The Lambda Function Stage
 Resources:
-  LambdaForCloudFormation:
+  CognitoAuthorizedRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: LambdaForCloudFormation
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Federated: cognito-identity.amazonaws.com
+          Action:
+          - sts:AssumeRoleWithWebIdentity
+          Condition:
+            StringEquals:
+              cognito-identity.amazonaws.com:aud:
+                Ref: IdentityPool
+            ForAnyValue:StringLike:
+              cognito-identity.amazonaws.com:amr: authenticated
+      Policies:
+      - PolicyName: CognitoAuthorizedPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - cognito-sync:*
+            - cognito-identity:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - lambda:InvokeFunction
+            - execute-api:Invoke
+            Resource: '*'
+  CognitoUserPoolClientDomainRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: CognitoUserPoolClientDomainRole
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -72,11 +104,11 @@ Resources:
       Runtime: nodejs8.10
       Code:
         S3Bucket: learntechpuzz-dev
-        S3Key: 136ac647db166b1864863ae73afedbaa
-      Handler: CloudFormationSendResponse.handler
+        S3Key: 6c3fbd6b7b429dc41d1b27e2b1ff6754
+      Handler: index.handler
       Role:
         Fn::GetAtt:
-        - LambdaForCloudFormation
+        - CognitoUserPoolClientDomainRole
         - Arn
   CognitoUserPoolClientSettings:
     Type: AWS::Lambda::Function
@@ -85,11 +117,11 @@ Resources:
       Runtime: nodejs8.10
       Code:
         S3Bucket: learntechpuzz-dev
-        S3Key: fba3b9eeae490e6e48e940d2fe750e76
+        S3Key: d0b102b2d46dca7393dcc74e21e274b1
       Handler: CognitoUserPoolClientSettings.handler
       Role:
         Fn::GetAtt:
-        - LambdaForCloudFormation
+        - CognitoUserPoolClientDomainRole
         - Arn
     DependsOn: CloudFormationSendResponse
   CognitoUserPoolDomain:
@@ -99,11 +131,11 @@ Resources:
       Runtime: nodejs8.10
       Code:
         S3Bucket: learntechpuzz-dev
-        S3Key: 8bedcaa3f63ff98d37776bf4502e3948
+        S3Key: 20c2ef5517cd81e1054758cb711c0a3e
       Handler: CognitoUserPoolDomain.handler
       Role:
         Fn::GetAtt:
-        - LambdaForCloudFormation
+        - CognitoUserPoolClientDomainRole
         - Arn
     DependsOn: CloudFormationSendResponse
   UserPool:
@@ -150,38 +182,6 @@ Resources:
           Fn::GetAtt:
           - UserPool
           - ProviderName
-  CognitoAuthorizedRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-        - Effect: Allow
-          Principal:
-            Federated: cognito-identity.amazonaws.com
-          Action:
-          - sts:AssumeRoleWithWebIdentity
-          Condition:
-            StringEquals:
-              cognito-identity.amazonaws.com:aud:
-                Ref: IdentityPool
-            ForAnyValue:StringLike:
-              cognito-identity.amazonaws.com:amr: authenticated
-      Policies:
-      - PolicyName: CognitoAuthorizedPolicy
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - cognito-sync:*
-            - cognito-identity:*
-            Resource: '*'
-          - Effect: Allow
-            Action:
-            - lambda:InvokeFunction
-            - execute-api:Invoke
-            Resource: '*'
   IdentityPoolRoleMapping:
     Type: AWS::Cognito::IdentityPoolRoleAttachment
     Properties:
@@ -210,7 +210,10 @@ Resources:
       AllowedOAuthFlowsUserPoolClient: true
       AllowedOAuthFlows:
       - code
+      - implicit
       AllowedOAuthScopes:
+      - phone
+      - email
       - openid
   UserPoolDomain:
     Type: Custom::CognitoUserPoolDomain
@@ -243,7 +246,7 @@ Resources:
       Runtime: java8
       Timeout: 60
       Handler: com.learntechpuzz.lambda.UserHandler::handleRequest
-      CodeUri: s3://learntechpuzz-dev/8b6e115e83183b19247b27251e600be7
+      CodeUri: s3://learntechpuzz-dev/8df6df8b7370709074d2d1e44c2f89e0
       Policies:
       - DynamoDBCrudPolicy:
           TableName:

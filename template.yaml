@@ -16,11 +16,43 @@ Parameters:
     Description: The Lambda Function Stage
 
 Resources:
-  # IAM Role for CognitoUserPoolClientSettings and CognitoUserPoolDomain 
-  LambdaForCloudFormation:
-    Type: 'AWS::IAM::Role'
+  # Create a role for authorized acces to AWS resources. Control what your user can access. This example only allows Lambda invocation
+  CognitoAuthorizedRole:
+    Type: "AWS::IAM::Role"
     Properties:
-      RoleName: LambdaForCloudFormation
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal: 
+              Federated: "cognito-identity.amazonaws.com"
+            Action: 
+              - "sts:AssumeRoleWithWebIdentity"
+            Condition:
+              StringEquals: 
+                "cognito-identity.amazonaws.com:aud": !Ref IdentityPool
+              "ForAnyValue:StringLike":
+                "cognito-identity.amazonaws.com:amr": authenticated
+      Policies:
+        - PolicyName: "CognitoAuthorizedPolicy"
+          PolicyDocument: 
+            Version: "2012-10-17"
+            Statement: 
+              - Effect: "Allow"
+                Action:
+                  - "cognito-sync:*"
+                  - "cognito-identity:*"
+                Resource: "*"
+              - Effect: "Allow"
+                Action:
+                  - "lambda:InvokeFunction"
+                  - "execute-api:Invoke"
+                Resource: "*"  
+  # Create IAM Role for CognitoUserPoolClient and CognitoUserPoolDomain settings 
+  CognitoUserPoolClientDomainRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: CognitoUserPoolClientDomainRole
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -82,9 +114,9 @@ Resources:
     Properties:
       FunctionName: CloudFormationSendResponse
       Runtime: nodejs8.10
-      Code: ./cognito-user-pool-client-domain/CloudFormationSendResponse.js
-      Handler: CloudFormationSendResponse.handler
-      Role: !GetAtt LambdaForCloudFormation.Arn
+      Code: ./cognito-user-pool-client-domain/CloudFormationSendResponse
+      Handler: index.handler
+      Role: !GetAtt CognitoUserPoolClientDomainRole.Arn
   CognitoUserPoolClientSettings:
     Type: 'AWS::Lambda::Function'
     Properties:
@@ -92,7 +124,7 @@ Resources:
       Runtime: nodejs8.10
       Code: ./cognito-user-pool-client-domain/CognitoUserPoolClientSettings.js
       Handler: CognitoUserPoolClientSettings.handler
-      Role: !GetAtt LambdaForCloudFormation.Arn
+      Role: !GetAtt CognitoUserPoolClientDomainRole.Arn
     DependsOn: CloudFormationSendResponse
   CognitoUserPoolDomain:
     Type: 'AWS::Lambda::Function'
@@ -101,7 +133,7 @@ Resources:
       Runtime: nodejs8.10
       Code: ./cognito-user-pool-client-domain/CognitoUserPoolDomain.js
       Handler: CognitoUserPoolDomain.handler
-      Role: !GetAtt LambdaForCloudFormation.Arn
+      Role: !GetAtt CognitoUserPoolClientDomainRole.Arn
     DependsOn: CloudFormationSendResponse
   # Creates a user pool in cognito for your app to auth against
   UserPool:
@@ -142,38 +174,6 @@ Resources:
       CognitoIdentityProviders: 
         - ClientId: !Ref UserPoolClient
           ProviderName: !GetAtt UserPool.ProviderName
-  # Create a role for authorized acces to AWS resources. Control what your user can access. This example only allows Lambda invocation
-  CognitoAuthorizedRole:
-    Type: "AWS::IAM::Role"
-    Properties:
-      AssumeRolePolicyDocument: 
-        Version: "2012-10-17"
-        Statement:
-          - Effect: "Allow"
-            Principal: 
-              Federated: "cognito-identity.amazonaws.com"
-            Action: 
-              - "sts:AssumeRoleWithWebIdentity"
-            Condition:
-              StringEquals: 
-                "cognito-identity.amazonaws.com:aud": !Ref IdentityPool
-              "ForAnyValue:StringLike":
-                "cognito-identity.amazonaws.com:amr": authenticated
-      Policies:
-        - PolicyName: "CognitoAuthorizedPolicy"
-          PolicyDocument: 
-            Version: "2012-10-17"
-            Statement: 
-              - Effect: "Allow"
-                Action:
-                  - "cognito-sync:*"
-                  - "cognito-identity:*"
-                Resource: "*"
-              - Effect: "Allow"
-                Action:
-                  - "lambda:InvokeFunction"
-                  - "execute-api:Invoke"
-                Resource: "*"  
   # Assigns the roles to the Identity Pool
   IdentityPoolRoleMapping:
     Type: "AWS::Cognito::IdentityPoolRoleAttachment"
@@ -194,12 +194,12 @@ Resources:
       LogoutURL: 'https://www.google.com'
       AllowedOAuthFlowsUserPoolClient: true
       AllowedOAuthFlows:
-        - token
+        - code
+        - implicit
       AllowedOAuthScopes:
-        - openid
-        - email
-        - phone
-        - Cognito
+        - "phone"
+        - "email"
+        - "openid"
   UserPoolDomain:
     Type: 'Custom::CognitoUserPoolDomain'
     Properties:

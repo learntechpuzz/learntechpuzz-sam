@@ -6,15 +6,7 @@ set INPUT_FILE=template.yaml
 set OUTPUT_FILE=template-output.yaml
 set STACK_NAME=%APPLICATION_NAME%-%STAGE_NAME%
 
-:: Build Cognito User Pool Client and Domain Settings Lambda Functions using npm
-
-cd cognito-user-pool-client-domain
-call npm install
-call npm prune --production
-cd ..
-
 :: Build Application Lambda Functions using maven
-
 cd lambda-functions
 call mvn clean package
 cd ..
