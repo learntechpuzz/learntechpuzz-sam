@@ -15,6 +15,10 @@ Parameters:
     Type: String
     Default: dev
     Description: The Lambda Function Stage
+  SourceEmail:
+    Type: String
+    Default: learntechpuzz@gmail.com
+    Description: Source email
 Resources:
   CognitoAuthorizedRole:
     Type: AWS::IAM::Role
@@ -117,7 +121,7 @@ Resources:
       Runtime: nodejs8.10
       Code:
         S3Bucket: learntechpuzz-dev
-        S3Key: d0b102b2d46dca7393dcc74e21e274b1
+        S3Key: 2377b242a950253e8218bca1fcff1c43
       Handler: CognitoUserPoolClientSettings.handler
       Role:
         Fn::GetAtt:
@@ -131,7 +135,7 @@ Resources:
       Runtime: nodejs8.10
       Code:
         S3Bucket: learntechpuzz-dev
-        S3Key: 20c2ef5517cd81e1054758cb711c0a3e
+        S3Key: 878f13d1abb4ec7928e5f8ff90978faa
       Handler: CognitoUserPoolDomain.handler
       Role:
         Fn::GetAtt:
@@ -144,10 +148,13 @@ Resources:
       UserPoolName:
         Fn::Sub: ${ApplicationName}-user-pool
       MfaConfiguration: 'OFF'
+      AutoVerifiedAttributes:
+      - email
       EmailConfiguration:
         EmailSendingAccount: COGNITO_DEFAULT
         ReplyToEmailAddress: learntechpuzz@gmail.com
-        SourceArn: arn:aws:ses:us-east-1:875051453867:identity/learntechpuzz@gmail.com
+        SourceArn:
+          Fn::Sub: arn:aws:ses:us-east-1:${AWS::AccountId}:identity/${SourceEmail}
       Schema:
       - Name: name
         AttributeDataType: String
@@ -224,15 +231,16 @@ Resources:
         - Arn
       UserPoolId:
         Ref: UserPool
-      Domain: learntechpuzz-dev
+      Domain:
+        Fn::Sub: learntechpuzz-${StageName}
   UserTable:
     Type: AWS::DynamoDB::Table
     Properties:
       AttributeDefinitions:
-      - AttributeName: Name
+      - AttributeName: UserName
         AttributeType: S
       KeySchema:
-      - AttributeName: Name
+      - AttributeName: UserName
         KeyType: HASH
       ProvisionedThroughput:
         ReadCapacityUnits: '5'
@@ -246,7 +254,7 @@ Resources:
       Runtime: java8
       Timeout: 60
       Handler: com.learntechpuzz.lambda.UserHandler::handleRequest
-      CodeUri: s3://learntechpuzz-dev/8df6df8b7370709074d2d1e44c2f89e0
+      CodeUri: s3://learntechpuzz-dev/cfef34f0b9fc55653f1f8f6729b8a511
       Policies:
       - DynamoDBCrudPolicy:
           TableName:
@@ -268,7 +276,8 @@ Resources:
     Properties:
       Name:
         Fn::Sub: ${ApplicationName}-${StageName}
-      StageName: dev
+      StageName:
+        Fn::Sub: ${StageName}
       DefinitionBody:
         Fn::Transform:
           Name: AWS::Include

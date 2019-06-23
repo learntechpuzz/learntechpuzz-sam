@@ -14,6 +14,10 @@ Parameters:
     Type: String
     Default: dev
     Description: The Lambda Function Stage
+  SourceEmail:
+    Type: String
+    Default: learntechpuzz@gmail.com
+    Description: Source email
 
 Resources:
   # Create a role for authorized acces to AWS resources. Control what your user can access. This example only allows Lambda invocation
@@ -141,10 +145,12 @@ Resources:
     Properties:
       UserPoolName: !Sub ${ApplicationName}-user-pool
       MfaConfiguration: "OFF"
+      AutoVerifiedAttributes:
+        - email      
       EmailConfiguration: 
           EmailSendingAccount: COGNITO_DEFAULT
           ReplyToEmailAddress: "learntechpuzz@gmail.com"
-          SourceArn: arn:aws:ses:us-east-1:875051453867:identity/learntechpuzz@gmail.com
+          SourceArn: !Sub arn:aws:ses:us-east-1:${AWS::AccountId}:identity/${SourceEmail}
       Schema:
         - Name: name
           AttributeDataType: String
@@ -205,18 +211,18 @@ Resources:
     Properties:
       ServiceToken: !GetAtt CognitoUserPoolDomain.Arn
       UserPoolId: !Ref UserPool
-      Domain: "learntechpuzz-dev"       
+      Domain: !Sub learntechpuzz-${StageName}       
   # DynamoDB User table      
   UserTable: 
     Type: AWS::DynamoDB::Table
     Properties: 
       AttributeDefinitions: 
         - 
-          AttributeName: "Name"
+          AttributeName: "UserName"
           AttributeType: "S"
       KeySchema: 
         - 
-          AttributeName: "Name"
+          AttributeName: "UserName"
           KeyType: "HASH"
       ProvisionedThroughput: 
         ReadCapacityUnits: "5"
@@ -227,7 +233,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName:
-        Fn::Sub: ${ApplicationName}-${StageName}-create-user
+        !Sub ${ApplicationName}-${StageName}-create-user
       Runtime: java8
       Timeout: 60
       Handler: com.learntechpuzz.lambda.UserHandler::handleRequest
@@ -251,8 +257,8 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       Name:
-        Fn::Sub: ${ApplicationName}-${StageName}
-      StageName: dev
+        !Sub ${ApplicationName}-${StageName}
+      StageName: !Sub ${StageName}
       DefinitionBody:
           Fn::Transform:
             Name: AWS::Include
