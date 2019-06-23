@@ -3,14 +3,6 @@ Transform: AWS::Serverless-2016-10-31
 Description: >
     Serverless Application Model implementation.
 
-Globals:
-  Function:
-    Runtime: java8
-    Timeout: 60
-    Tags:
-      stage:
-        Ref: StageName
-
 Parameters:
   ApplicationName:
     Type: String
@@ -24,7 +16,93 @@ Parameters:
     Description: The Lambda Function Stage
 
 Resources:
-
+  # IAM Role for CognitoUserPoolClientSettings and CognitoUserPoolDomain 
+  LambdaForCloudFormation:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: LambdaForCloudFormation
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          -
+            Effect: Allow
+            Action: 'sts:AssumeRole'
+            Principal:
+              Service: lambda.amazonaws.com
+      Policies:
+        -
+          PolicyName: WriteCloudWatchLogs
+          PolicyDocument: 
+            Version: '2012-10-17'
+            Statement: 
+              -
+                Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+        -
+          PolicyName: UpdateUserPoolClient
+          PolicyDocument: 
+            Version: '2012-10-17'
+            Statement: 
+              -
+                Effect: Allow
+                Action: 'cognito-idp:UpdateUserPoolClient'
+                Resource: 'arn:aws:cognito-idp:*:*:userpool/*'
+        -
+          PolicyName: ManageUserPoolDomain
+          PolicyDocument: 
+            Version: '2012-10-17'
+            Statement: 
+              -
+                Effect: Allow
+                Action: 'cognito-idp:CreateUserPoolDomain'
+                Resource: 'arn:aws:cognito-idp:*:*:userpool/*'
+              -
+                Effect: Allow
+                Action: 'cognito-idp:DeleteUserPoolDomain'
+                Resource: 'arn:aws:cognito-idp:*:*:userpool/*'
+              -
+                Effect: Allow
+                Action: 'cognito-idp:DescribeUserPoolDomain'
+                Resource: '*'
+        -
+          PolicyName: InvokeLambdaFunction
+          PolicyDocument: 
+            Version: '2012-10-17'
+            Statement: 
+              -
+                Effect: Allow
+                Action: 'lambda:InvokeFunction'
+                Resource: 'arn:aws:lambda:*:*:function:*'
+  CloudFormationSendResponse:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: CloudFormationSendResponse
+      Runtime: nodejs8.10
+      Code: ./cognito-user-pool-client-domain/CloudFormationSendResponse.js
+      Handler: CloudFormationSendResponse.handler
+      Role: !GetAtt LambdaForCloudFormation.Arn
+  CognitoUserPoolClientSettings:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: CognitoUserPoolClientSettings
+      Runtime: nodejs8.10
+      Code: ./cognito-user-pool-client-domain/CognitoUserPoolClientSettings.js
+      Handler: CognitoUserPoolClientSettings.handler
+      Role: !GetAtt LambdaForCloudFormation.Arn
+    DependsOn: CloudFormationSendResponse
+  CognitoUserPoolDomain:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: CognitoUserPoolDomain
+      Runtime: nodejs8.10
+      Code: ./cognito-user-pool-client-domain/CognitoUserPoolDomain.js
+      Handler: CognitoUserPoolDomain.handler
+      Role: !GetAtt LambdaForCloudFormation.Arn
+    DependsOn: CloudFormationSendResponse
   # Creates a user pool in cognito for your app to auth against
   UserPool:
     Type: AWS::Cognito::UserPool
@@ -103,6 +181,31 @@ Resources:
       IdentityPoolId: !Ref IdentityPool
       Roles:
         authenticated: !GetAtt CognitoAuthorizedRole.Arn
+  # User Pool Client        
+  UserPoolClientSettings:
+    Type: 'Custom::CognitoUserPoolClientSettings'
+    Properties:
+      ServiceToken: !GetAtt CognitoUserPoolClientSettings.Arn
+      UserPoolId: !Ref UserPool
+      UserPoolClientId: !Ref UserPoolClient
+      SupportedIdentityProviders:
+        - COGNITO
+      CallbackURL: 'https://www.amazon.com'
+      LogoutURL: 'https://www.google.com'
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - token
+      AllowedOAuthScopes:
+        - openid
+        - email
+        - phone
+        - Cognito
+  UserPoolDomain:
+    Type: 'Custom::CognitoUserPoolDomain'
+    Properties:
+      ServiceToken: !GetAtt CognitoUserPoolDomain.Arn
+      UserPoolId: !Ref UserPool
+      Domain: "learntechpuzz-dev"       
   # DynamoDB User table      
   UserTable: 
     Type: AWS::DynamoDB::Table
@@ -125,8 +228,10 @@ Resources:
     Properties:
       FunctionName:
         Fn::Sub: ${ApplicationName}-${StageName}-create-user
+      Runtime: java8
+      Timeout: 60
       Handler: com.learntechpuzz.lambda.UserHandler::handleRequest
-      CodeUri: lambda-functions/target/learntechpuzz-aws-lambda-0.1.0-SNAPSHOT.jar
+      CodeUri: ./lambda-functions/target/learntechpuzz-aws-lambda-0.1.0-SNAPSHOT.jar
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UserTable
@@ -166,4 +271,4 @@ Outputs:
         - ""
         - - "https://"
           - Ref: RestApi
-          - Fn::Sub: ".execute-api.${AWS::Region}.amazonaws.com/dev"
+          - Fn::Sub: ".execute-api.${AWS::Region}.amazonaws.com/${StageName}"
