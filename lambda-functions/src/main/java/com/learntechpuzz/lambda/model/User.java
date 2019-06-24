@@ -5,46 +5,55 @@ import com.google.gson.GsonBuilder;
 
 public class User {
 
-    private String name;
-    private String email;
-    private String mobile;
+	private String username;
+	private String name;
+	private String email;
+	private String mobile;
 
-    public User(String json) {
-        Gson gson = new Gson();
-        User request = gson.fromJson(json, User.class);
-        this.name = request.getName();
-        this.email = request.getEmail();
-        this.mobile = request.getMobile();
-    }
+	public User(String json) {
+		Gson gson = new Gson();
+		User request = gson.fromJson(json, User.class);
+		this.username = request.getUserName();
+		this.name = request.getName();
+		this.email = request.getEmail();
+		this.mobile = request.getMobile();
+	}
 
-    public String toString() {
-        final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        return gson.toJson(this);
-    }
+	public String toString() {
+		final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+		return gson.toJson(this);
+	}
 
-    public String getName() {
-        return name;
-    }
+	public String getUserName() {
+		return username;
+	}
 
-    public void setName(String name) {
-        this.name = name;
-    }
+	public void setUserName(String username) {
+		this.username = username;
+	}
 
-    public String getMobile() {
-        return mobile;
-    }
+	public String getName() {
+		return name;
+	}
 
-    public void setMobile(String mobile) {
-        this.mobile = mobile;
-    }
+	public void setName(String name) {
+		this.name = name;
+	}
 
-    public String getEmail() {
-        return email;
-    }
+	public String getMobile() {
+		return mobile;
+	}
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+	public void setMobile(String mobile) {
+		this.mobile = mobile;
+	}
 
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
 
 }

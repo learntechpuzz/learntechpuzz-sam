@@ -121,7 +121,7 @@ Resources:
       Runtime: nodejs8.10
       Code:
         S3Bucket: learntechpuzz-dev
-        S3Key: 2377b242a950253e8218bca1fcff1c43
+        S3Key: 4008fa22884e7d7fbc547e7e62318968
       Handler: CognitoUserPoolClientSettings.handler
       Role:
         Fn::GetAtt:
@@ -135,7 +135,7 @@ Resources:
       Runtime: nodejs8.10
       Code:
         S3Bucket: learntechpuzz-dev
-        S3Key: 878f13d1abb4ec7928e5f8ff90978faa
+        S3Key: 3f29e94efe07e79d9ba2692f101b38ad
       Handler: CognitoUserPoolDomain.handler
       Role:
         Fn::GetAtt:
@@ -254,7 +254,7 @@ Resources:
       Runtime: java8
       Timeout: 60
       Handler: com.learntechpuzz.lambda.UserHandler::handleRequest
-      CodeUri: s3://learntechpuzz-dev/cfef34f0b9fc55653f1f8f6729b8a511
+      CodeUri: s3://learntechpuzz-dev/d7ee2e5310fa1a8478bfea0908c9b8ff
       Policies:
       - DynamoDBCrudPolicy:
           TableName:
