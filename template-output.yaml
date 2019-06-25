@@ -121,7 +121,7 @@ Resources:
       Runtime: nodejs8.10
       Code:
         S3Bucket: learntechpuzz-dev
-        S3Key: 4008fa22884e7d7fbc547e7e62318968
+        S3Key: 6313ecdec65fb6ac876c48967aaacd04
       Handler: CognitoUserPoolClientSettings.handler
       Role:
         Fn::GetAtt:
@@ -135,7 +135,7 @@ Resources:
       Runtime: nodejs8.10
       Code:
         S3Bucket: learntechpuzz-dev
-        S3Key: 3f29e94efe07e79d9ba2692f101b38ad
+        S3Key: 2a0ef6a24e5e968882c8e0368d21f1a9
       Handler: CognitoUserPoolDomain.handler
       Role:
         Fn::GetAtt:
@@ -212,8 +212,10 @@ Resources:
         Ref: UserPoolClient
       SupportedIdentityProviders:
       - COGNITO
-      CallbackURL: https://www.amazon.com
-      LogoutURL: https://www.google.com
+      CallbackURL:
+        Fn::Sub: https://s3.amazonaws.com/${ApplicationName}/secured.html
+      LogoutURL:
+        Fn::Sub: https://s3.amazonaws.com/${ApplicationName}/public.html
       AllowedOAuthFlowsUserPoolClient: true
       AllowedOAuthFlows:
       - code
@@ -254,7 +256,7 @@ Resources:
       Runtime: java8
       Timeout: 60
       Handler: com.learntechpuzz.lambda.UserHandler::handleRequest
-      CodeUri: s3://learntechpuzz-dev/d7ee2e5310fa1a8478bfea0908c9b8ff
+      CodeUri: s3://learntechpuzz-dev/f05dc929a06a051e552ca7a5aaeeb922
       Policies:
       - DynamoDBCrudPolicy:
           TableName:

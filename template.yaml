@@ -1,8 +1,8 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
+
 Description: >
     Serverless Application Model implementation.
-
 Parameters:
   ApplicationName:
     Type: String
@@ -196,8 +196,8 @@ Resources:
       UserPoolClientId: !Ref UserPoolClient
       SupportedIdentityProviders:
         - COGNITO
-      CallbackURL: 'https://www.amazon.com'
-      LogoutURL: 'https://www.google.com'
+      CallbackURL: !Sub https://s3.amazonaws.com/${ApplicationName}/secured.html 
+      LogoutURL: !Sub https://s3.amazonaws.com/${ApplicationName}/public.html 
       AllowedOAuthFlowsUserPoolClient: true
       AllowedOAuthFlows:
         - code

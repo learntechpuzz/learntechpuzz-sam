@@ -35,7 +35,7 @@ paths:
         - ApiCognitoAuthorizer: []              
       x-amazon-apigateway-integration:
         uri: 
-          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateUserFunction.Arn}/invocations
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateUserFunction.Arn}/invocations  
         responses:
           default:
             statusCode: 200
@@ -47,7 +47,7 @@ components:
   securitySchemes:
     ApiCognitoAuthorizer:
       type: apiKey
-      name: Authorization
+      name: method.request.header.Authorization
       in: header
       x-amazon-apigateway-authtype: cognito_user_pools
       x-amazon-apigateway-authorizer:
