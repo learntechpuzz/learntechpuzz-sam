@@ -33,10 +33,6 @@ public class UserHandler implements RequestStreamHandler {
 		BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
 		JSONObject responseJson = new JSONObject();
 
-		// Response header
-		JSONObject headerJson = new JSONObject();
-		headerJson.put("Access-Control-Allow-Origin", "*");
-		responseJson.put("headers", headerJson);
 
 		AmazonDynamoDB client = AmazonDynamoDBClientBuilder.defaultClient();
 		DynamoDB dynamoDb = new DynamoDB(client);
@@ -64,10 +60,10 @@ public class UserHandler implements RequestStreamHandler {
 
 		} catch (ParseException pex) {
 			responseJson.put("statusCode", 400);
-			responseJson.put("exception", pex);
+			responseJson.put("message", pex);
 		} catch (Exception ex) {
 			responseJson.put("statusCode", 500);
-			responseJson.put("exception", ex);
+			responseJson.put("message", ex);
 		}
 
 		OutputStreamWriter writer = new OutputStreamWriter(outputStream, "UTF-8");
