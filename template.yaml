@@ -236,14 +236,14 @@ Resources:
         !Sub ${ApplicationName}-${StageName}-create-user
       Runtime: java8
       Timeout: 60
-      Handler: com.learntechpuzz.lambda.UserHandler::handleRequest
+      Handler: com.learntechpuzz.lambda.handler.UserHandler::createUser
       CodeUri: ./lambda-functions/target/learntechpuzz-aws-lambda-0.1.0-SNAPSHOT.jar
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UserTable
       Environment:
         Variables:
-          TABLE_NAME: !Ref UserTable
+          USER_TABLE_NAME: !Ref UserTable
       Events:
         UserApi:
           Type: Api

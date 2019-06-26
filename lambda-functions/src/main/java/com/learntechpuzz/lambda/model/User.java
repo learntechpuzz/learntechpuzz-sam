@@ -10,15 +10,6 @@ public class User {
 	private String email;
 	private String mobile;
 
-	public User(String json) {
-		Gson gson = new Gson();
-		User request = gson.fromJson(json, User.class);
-		this.username = request.getUserName();
-		this.name = request.getName();
-		this.email = request.getEmail();
-		this.mobile = request.getMobile();
-	}
-
 	public String toString() {
 		final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 		return gson.toJson(this);

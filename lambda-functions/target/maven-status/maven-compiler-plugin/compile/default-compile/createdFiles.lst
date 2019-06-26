@@ -1,2 +1,6 @@
+com\learntechpuzz\lambda\exception\BadRequestException.class
+com\learntechpuzz\lambda\handler\UserHandler.class
+com\learntechpuzz\lambda\model\ApiResponse.class
 com\learntechpuzz\lambda\model\User.class
-com\learntechpuzz\lambda\UserHandler.class
+com\learntechpuzz\lambda\handler\AbstractHandler.class
+com\learntechpuzz\lambda\exception\InternalErrorException.class

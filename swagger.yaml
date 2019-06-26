@@ -1,63 +1,100 @@
-openapi: "3.0.1"
+swagger: '2.0'
 info:
   title: learntechpuzz-api
-  version: 1.0.0
+  description: learntechpuzz API
+  version: "1.0.0"
+schemes:
+  - https
+basePath: /
+produces:
+  - application/json
 paths:
   /user:
     post:
-      x-amazon-apigateway-request-validator: all
-      requestBody:
-         description: A JSON object containing user information
-         required: true
-         content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/User"
+      summary: Registers a new user
+      description: |
+        Creates a new user in the DynamoDB database
+      consumes:
+        - application/json
+      produces:
+        - application/json
       parameters:
-        - in: "header"
-          name: "Authorization"
+        - in: header
+          name: Authorization
           required: true
+          description: Authorization header
+          type: "string"
+        - name: User
+          in: body
+          required: true
+          description: New user details
           schema:
-            type: "string"
-      responses:
-        200:
-          description: "Successful operation"
-          headers:
-            Access-Control-Allow-Headers:
-              $ref: "#/components/headers/Access-Control-Allow-Headers"
-            Access-Control-Allow-Methods:
-              $ref: "#/components/headers/Access-Control-Allow-Methods"
-            Access-Control-Allow-Origin:
-              $ref: "#/components/headers/Access-Control-Allow-Origin"          
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiResponse"
-        400:
-          description: "Invalid request body"
-          headers:
-            Access-Control-Allow-Headers:
-              $ref: "#/components/headers/Access-Control-Allow-Headers"
-            Access-Control-Allow-Methods:
-              $ref: "#/components/headers/Access-Control-Allow-Methods"
-            Access-Control-Allow-Origin:
-              $ref: "#/components/headers/Access-Control-Allow-Origin"          
-          content: {}
-        500:
-          description: "Internal server error"
-          headers:
-            Access-Control-Allow-Headers:
-              $ref: "#/components/headers/Access-Control-Allow-Headers"
-            Access-Control-Allow-Methods:
-              $ref: "#/components/headers/Access-Control-Allow-Methods"
-            Access-Control-Allow-Origin:
-              $ref: "#/components/headers/Access-Control-Allow-Origin"          
-          content: {}
+            $ref: '#/definitions/User'
       security:
         - ApiCognitoAuthorizer: []              
       x-amazon-apigateway-integration:
+        type: aws
         uri: 
           Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateUserFunction.Arn}/invocations  
+        httpMethod: POST
+        requestTemplates:
+          application/json: |
+            {
+              "body" : $input.json('$')
+            }
+        responses:
+          "default":
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Origin : "'*'"
+          "400.*":
+            statusCode: "400"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Origin : "'*'"
+          "500.*":
+            statusCode: "500"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Origin : "'*'"
+      x-amazon-apigateway-request-validator: all
+      responses:
+        200:
+          description: User created successfully
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+          schema:
+            $ref: '#/definitions/ApiResponse'
+        400:
+          description: Bad request
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+          schema:
+            $ref: '#/definitions/Error'
+        500:
+          description: Internal error
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+          schema:
+            $ref: '#/definitions/Error'
+    options:
+      summary: CORS support
+      description: |
+        Enable CORS by returning correct headers
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - CORS
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
         responses:
           "default":
             statusCode: "200"
@@ -66,59 +103,59 @@ paths:
               method.response.header.Access-Control-Allow-Methods : "'*'"
               method.response.header.Access-Control-Allow-Origin : "'*'"
             responseTemplates:
-              application/json: 
-                schema:
-                  $ref: "#/components/schemas/ApiResponse"
-        passthroughBehavior: "when_no_match"
-        httpMethod: "POST"
-        contentHandling: "CONVERT_TO_TEXT"
-        type: "aws_proxy"
-components:
-  headers:
-    Access-Control-Allow-Headers:
-      description: Access-Control-Allow-Headers
-      schema:
+              application/json: |
+                {}
+      responses:
+        200:
+          description: Default response for CORS method
+          headers:
+            Access-Control-Allow-Headers:
+              type: "string"
+            Access-Control-Allow-Methods:
+              type: "string"
+            Access-Control-Allow-Origin:
+              type: "string"
+definitions:
+  User:
+    type: object
+    properties:
+      username:
         type: string
-    Access-Control-Allow-Methods:
-      description: Access-Control-Allow-Methods
-      schema:
+      name:
         type: string
-    Access-Control-Allow-Origin:
-      description: Access-Control-Allow-Origin
-      schema:
+      email:
         type: string
-  securitySchemes:
-    ApiCognitoAuthorizer:
-      type: apiKey
-      name: method.request.header.Authorization
-      in: header
-      x-amazon-apigateway-authtype: cognito_user_pools
-      x-amazon-apigateway-authorizer:
-        type: cognito_user_pools
-        providerARNs:
-          - Fn::Sub: ${UserPool.Arn}
-  schemas:
-    User:
-      type: object
-      properties:
-        username:
-          type: string
-        name:
-          type: string
-        email:
-          type: string
-        mobile:
-          type: string
-      required:
-        - username
-        - name
-        - email
-        - mobile
-    ApiResponse:
-      type: object
-      properties:
-        message:
-          type: string
+      mobile:
+        type: string
+    required:
+      - username
+      - name
+      - email
+      - mobile
+  ApiResponse:
+    type: object
+    properties:
+      message:
+        type: string
+  Error:
+    properties:
+      code:
+        type: integer
+        format: int32
+      message:
+        type: string
+      fields:
+        type: string
+securityDefinitions:
+  ApiCognitoAuthorizer:
+    type: apiKey
+    name: method.request.header.Authorization
+    in: header
+    x-amazon-apigateway-authtype: cognito_user_pools
+    x-amazon-apigateway-authorizer:
+      type: cognito_user_pools
+      providerARNs:
+        - Fn::Sub: ${UserPool.Arn}
 x-amazon-apigateway-request-validators:
   all:
     validateRequestBody: true
