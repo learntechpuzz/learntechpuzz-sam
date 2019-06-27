@@ -79,4 +79,56 @@ public class UserHandler extends AbstractHandler {
 		}
 	}
 
+	public void createUserPostConfirmation(InputStream request, OutputStream response, Context context)
+			throws BadRequestException, InternalErrorException {
+		LambdaLogger logger = context.getLogger();
+
+		JsonParser parser = new JsonParser();
+		JsonObject inputObj;
+		try {
+			inputObj = parser.parse(IOUtils.toString(request, "UTF-8")).getAsJsonObject();
+			logger.log("\ninputObj: " + inputObj);
+		} catch (Exception e) {
+			logger.log("\nError while reading request: " + e.getMessage());
+			e.printStackTrace();
+			throw new InternalErrorException(e.getMessage());
+		}
+
+		JsonObject body = null;
+		if (inputObj.get("request") != null) {
+			body = inputObj.get("request").getAsJsonObject().get("userAttributes").getAsJsonObject();
+		} else {
+			logger.log("\nInvalid input");
+			throw new BadRequestException("Invalid input");
+		}
+		logger.log("\nbody: " + body);
+
+
+		try {
+			AmazonDynamoDB client = AmazonDynamoDBClientBuilder.defaultClient();
+			DynamoDB dynamoDb = new DynamoDB(client);
+			logger.log("\nDYNAMODB_TABLE_NAME: " + DYNAMODB_TABLE_NAME);
+			dynamoDb.getTable(DYNAMODB_TABLE_NAME)
+					.putItem(new PutItemSpec().withItem(
+							new Item().withString("UserName", inputObj.get("userName").getAsString()).withString("Name", body.get("name").getAsString())
+									.withString("Email", body.get("email").getAsString()).withString("Mobile", body.get("phone_number").getAsString())));
+		} catch (Exception e) {
+			logger.log("\nError while saving user: " + e.getMessage());
+			e.printStackTrace();
+			throw new InternalErrorException(e.getMessage());
+		}
+
+
+		String output = getGson().toJson(inputObj);
+		logger.log("\noutput: " + output);
+
+		try {
+			IOUtils.write(output, response, "UTF-8");
+		} catch (final IOException e) {
+			logger.log("\nError while writing response" + e.getMessage());
+			e.printStackTrace();
+			throw new InternalErrorException(e.getMessage());
+		}
+	}
+	
 }

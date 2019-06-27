@@ -121,7 +121,7 @@ Resources:
       Runtime: nodejs8.10
       Code:
         S3Bucket: learntechpuzz-dev
-        S3Key: b2c705459baf6d511c3e6ce55a4e99a0
+        S3Key: 7c9b9c1b5310fba72e2ab7114abf8ca8
       Handler: CognitoUserPoolClientSettings.handler
       Role:
         Fn::GetAtt:
@@ -135,7 +135,7 @@ Resources:
       Runtime: nodejs8.10
       Code:
         S3Bucket: learntechpuzz-dev
-        S3Key: ff66c250289ce8a033cedfe749346281
+        S3Key: a3191e36021f074ec9cf4d4440b0139e
       Handler: CognitoUserPoolDomain.handler
       Role:
         Fn::GetAtt:
@@ -155,6 +155,11 @@ Resources:
         ReplyToEmailAddress: learntechpuzz@gmail.com
         SourceArn:
           Fn::Sub: arn:aws:ses:us-east-1:${AWS::AccountId}:identity/${SourceEmail}
+      LambdaConfig:
+        PostConfirmation:
+          Fn::GetAtt:
+          - CreateUserPostConfirmationFunction
+          - Arn
       Schema:
       - Name: name
         AttributeDataType: String
@@ -235,6 +240,37 @@ Resources:
         Ref: UserPool
       Domain:
         Fn::Sub: learntechpuzz-${StageName}
+  CognitoLambdaInvocationPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+        - CreateUserPostConfirmationFunction
+        - Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+        - UserPool
+        - Arn
+  CreateUserPostConfirmationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName:
+        Fn::Sub: ${ApplicationName}-${StageName}-create-user-post-confirmation
+      Runtime: java8
+      Timeout: 300
+      MemorySize: 512
+      Handler: com.learntechpuzz.lambda.handler.UserHandler::createUserPostConfirmation
+      CodeUri: s3://learntechpuzz-dev/e440648059939cd1c2194e4b9b4852f5
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: UserTable
+      Environment:
+        Variables:
+          USER_TABLE_NAME:
+            Ref: UserTable
   UserTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -254,9 +290,10 @@ Resources:
       FunctionName:
         Fn::Sub: ${ApplicationName}-${StageName}-create-user
       Runtime: java8
-      Timeout: 60
+      Timeout: 300
+      MemorySize: 512
       Handler: com.learntechpuzz.lambda.handler.UserHandler::createUser
-      CodeUri: s3://learntechpuzz-dev/180270fc6af40977e9186ca4e75eade1
+      CodeUri: s3://learntechpuzz-dev/e440648059939cd1c2194e4b9b4852f5
       Policies:
       - DynamoDBCrudPolicy:
           TableName:

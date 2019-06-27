@@ -148,9 +148,11 @@ Resources:
       AutoVerifiedAttributes:
         - email      
       EmailConfiguration: 
-          EmailSendingAccount: COGNITO_DEFAULT
-          ReplyToEmailAddress: "learntechpuzz@gmail.com"
-          SourceArn: !Sub arn:aws:ses:us-east-1:${AWS::AccountId}:identity/${SourceEmail}
+        EmailSendingAccount: COGNITO_DEFAULT
+        ReplyToEmailAddress: "learntechpuzz@gmail.com"
+        SourceArn: !Sub arn:aws:ses:us-east-1:${AWS::AccountId}:identity/${SourceEmail}
+      LambdaConfig:
+        PostConfirmation: !GetAtt CreateUserPostConfirmationFunction.Arn     
       Schema:
         - Name: name
           AttributeDataType: String
@@ -211,7 +213,32 @@ Resources:
     Properties:
       ServiceToken: !GetAtt CognitoUserPoolDomain.Arn
       UserPoolId: !Ref UserPool
-      Domain: !Sub learntechpuzz-${StageName}       
+      Domain: !Sub learntechpuzz-${StageName}   
+  # Cognito Permission for access lambda function    
+  CognitoLambdaInvocationPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt CreateUserPostConfirmationFunction.Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !GetAtt UserPool.Arn          
+  # Lambda Function to add user into Dynamo DB (PostConfirmation)    
+  CreateUserPostConfirmationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName:
+        !Sub ${ApplicationName}-${StageName}-create-user-post-confirmation
+      Runtime: java8
+      Timeout: 300
+      MemorySize: 512
+      Handler: com.learntechpuzz.lambda.handler.UserHandler::createUserPostConfirmation
+      CodeUri: ./lambda-functions/target/learntechpuzz-aws-lambda-0.1.0-SNAPSHOT.jar
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UserTable
+      Environment:
+        Variables:
+          USER_TABLE_NAME: !Ref UserTable
   # DynamoDB User table      
   UserTable: 
     Type: AWS::DynamoDB::Table
@@ -235,7 +262,8 @@ Resources:
       FunctionName:
         !Sub ${ApplicationName}-${StageName}-create-user
       Runtime: java8
-      Timeout: 60
+      Timeout: 300
+      MemorySize: 512
       Handler: com.learntechpuzz.lambda.handler.UserHandler::createUser
       CodeUri: ./lambda-functions/target/learntechpuzz-aws-lambda-0.1.0-SNAPSHOT.jar
       Policies:
