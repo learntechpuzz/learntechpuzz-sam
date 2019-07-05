@@ -297,6 +297,22 @@ Resources:
                   - - 's3://'
                     - Ref: S3BucketName
                     - '/swagger.yaml'
+  GatewayResponseBadRequestBody:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+      ResponseType: BAD_REQUEST_BODY
+      RestApiId: !Ref RestApi
+      StatusCode: '400'                  
+  GatewayResponseUnauthorized:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+      ResponseType: UNAUTHORIZED
+      RestApiId: !Ref RestApi
+      StatusCode: '401'                  
 # Outputs              
 Outputs:
   ApiUrl:

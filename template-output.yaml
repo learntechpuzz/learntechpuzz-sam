@@ -121,7 +121,7 @@ Resources:
       Runtime: nodejs8.10
       Code:
         S3Bucket: learntechpuzz-dev
-        S3Key: ac46d91a81d904f3f83a30142f0176ac
+        S3Key: 3c811032d597b5e2a0de954149ea7fe3
       Handler: CognitoUserPoolClientSettings.handler
       Role:
         Fn::GetAtt:
@@ -135,7 +135,7 @@ Resources:
       Runtime: nodejs8.10
       Code:
         S3Bucket: learntechpuzz-dev
-        S3Key: 776cb1202696448b2e4df27a86c77ab4
+        S3Key: f53233cf1dc8fa40b1ec355571baf798
       Handler: CognitoUserPoolDomain.handler
       Role:
         Fn::GetAtt:
@@ -262,7 +262,7 @@ Resources:
       Timeout: 300
       MemorySize: 512
       Handler: com.learntechpuzz.lambda.handler.UserHandler::createUserPostConfirmation
-      CodeUri: s3://learntechpuzz-dev/e5eea9b521172292fdcf69d8951cd98b
+      CodeUri: s3://learntechpuzz-dev/4af9150f7e07863fbbad88c7b0e13e95
       Policies:
       - DynamoDBCrudPolicy:
           TableName:
@@ -293,7 +293,7 @@ Resources:
       Timeout: 300
       MemorySize: 512
       Handler: com.learntechpuzz.lambda.handler.UserHandler::createUser
-      CodeUri: s3://learntechpuzz-dev/e5eea9b521172292fdcf69d8951cd98b
+      CodeUri: s3://learntechpuzz-dev/4af9150f7e07863fbbad88c7b0e13e95
       Policies:
       - DynamoDBCrudPolicy:
           TableName:
@@ -327,6 +327,24 @@ Resources:
               - - s3://
                 - Ref: S3BucketName
                 - /swagger.yaml
+  GatewayResponseBadRequestBody:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: '''*'''
+      ResponseType: BAD_REQUEST_BODY
+      RestApiId:
+        Ref: RestApi
+      StatusCode: '400'
+  GatewayResponseUnauthorized:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: '''*'''
+      ResponseType: UNAUTHORIZED
+      RestApiId:
+        Ref: RestApi
+      StatusCode: '401'
 Outputs:
   ApiUrl:
     Value:
