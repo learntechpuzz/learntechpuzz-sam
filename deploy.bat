@@ -1,5 +1,5 @@
 @echo off
-set APPLICATION_NAME=learntechpuzz
+set APPLICATION_NAME=learntechpuzz-dev
 set STAGE_NAME=dev
 set S3_BUCKET=learntechpuzz-%STAGE_NAME%
 set INPUT_FILE=template.yaml
