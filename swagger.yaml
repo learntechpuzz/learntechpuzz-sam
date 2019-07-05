@@ -18,6 +18,8 @@ paths:
         - application/json
       produces:
         - application/json
+      security:
+        - ApiCognitoAuthorizer: []              
       parameters:
         - in: header
           name: Authorization
@@ -30,8 +32,29 @@ paths:
           description: New user details
           schema:
             $ref: '#/definitions/User'
-      security:
-        - ApiCognitoAuthorizer: []              
+      responses:
+        200:
+          description: "successful operation"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+          schema:
+            $ref: '#/definitions/ApiResponse'
+        400:
+          description: "Bad request"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+          schema:
+            $ref: '#/definitions/Error'              
+        500:
+          description: "Internal error"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+          schema:
+            $ref: '#/definitions/Error'              
+      x-amazon-apigateway-request-validator: all
       x-amazon-apigateway-integration:
         type: aws
         uri: 
@@ -47,37 +70,18 @@ paths:
             statusCode: "200"
             responseParameters:
               method.response.header.Access-Control-Allow-Origin : "'*'"
-          "400.*":
+            responseTemplates:
+              application/json:
+                schema:
+                  $ref: '#/definitions/ApiResponse'
+          "BAD.*":
             statusCode: "400"
             responseParameters:
               method.response.header.Access-Control-Allow-Origin : "'*'"
-          "500.*":
+          "INT.*":
             statusCode: "500"
             responseParameters:
               method.response.header.Access-Control-Allow-Origin : "'*'"
-      x-amazon-apigateway-request-validator: all
-      responses:
-        200:
-          description: User created successfully
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-          schema:
-            $ref: '#/definitions/ApiResponse'
-        400:
-          description: Bad request
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-          schema:
-            $ref: '#/definitions/Error'
-        500:
-          description: Internal error
-          headers:
-            Access-Control-Allow-Origin:
-              type: "string"
-          schema:
-            $ref: '#/definitions/Error'
     options:
       summary: CORS support
       description: |
@@ -96,8 +100,8 @@ paths:
               "statusCode" : 200
             }
         responses:
-          "default":
-            statusCode: "200"
+          default:
+            statusCode: '200'
             responseParameters:
               method.response.header.Access-Control-Allow-Headers : "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
               method.response.header.Access-Control-Allow-Methods : "'*'"
@@ -107,7 +111,7 @@ paths:
                 {}
       responses:
         200:
-          description: Default response for CORS method
+          description: "Default response for CORS method"
           headers:
             Access-Control-Allow-Headers:
               type: "string"
@@ -145,17 +149,17 @@ definitions:
       message:
         type: string
       fields:
-        type: string
+        type: string        
 securityDefinitions:
   ApiCognitoAuthorizer:
     type: apiKey
-    name: method.request.header.Authorization
+    name: Authorization
     in: header
-    x-amazon-apigateway-authtype: cognito_user_pools
+    x-amazon-apigateway-authtype: COGNITO_USER_POOLS
     x-amazon-apigateway-authorizer:
-      type: cognito_user_pools
+      type: COGNITO_USER_POOLS
       providerARNs:
-        - Fn::Sub: ${UserPool.Arn}
+        - Fn::Sub: ${UserPool.Arn}        
 x-amazon-apigateway-request-validators:
   all:
     validateRequestBody: true
